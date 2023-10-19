@@ -21,8 +21,8 @@ uint8 roadMid[64];
 
 void image_process()
 {
-    // downsample(mt9v03x_image);
-    downsample(imagea);
+    downsample(mt9v03x_image);
+    // downsample(imagea);
     if(doBin)binarize();
     if(doCal){
         getLongestWhiteline();
@@ -175,22 +175,18 @@ void getLongestWhiteline(){
     maxl = 0;
     maxlpx = 0;
     for(int i = 0; i < 128; i++){
-        for(int j = 0; j < 64; j++){
-            if(image[j][i]){
-                for(int k = j+1; k < 64; k++){
-                    if(image[k][i]){
-                        if(k-j > maxl){
-                            maxl = k-j;
-                            sum = i;
-                            lcount = 1;
-                        }
-                        if(k-j == maxl){
-                            sum += i;
-                            lcount++;
-                        }
-                    }
-                    else j = k+1;
+        for(int j = 63; j >= 0; j--){
+            if(!image[j][i]){
+                if(63-j > maxl){
+                    maxl = 63-j;
+                    sum = i;
+                    lcount = 1;
                 }
+                if(63-j == maxl){
+                    sum += i;
+                    lcount++;
+                }
+                break;
             }
         }
     }
@@ -208,7 +204,6 @@ void findEdge(){
 		for(int j = maxlpx; j < 128; j++){
 			if(!image[i][j] || j == 127){
 				rEdge[i] = j;
-				printf("%d %d \n", i, j);
 				break;
 			}
 		}
