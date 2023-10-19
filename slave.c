@@ -98,10 +98,9 @@ void slaveEvent()
         option = 0;
         slaveDraw();
     }
-    if (slavePage[page].title == "About" && focusLevel != 0)
+    if ((slavePage[page].title == "About" || slavePage[page].title == "Moni.") && focusLevel != 0)
     {
         focusLevel = 0;
-        slaveDraw();
     }
     if (!g_button)
         return;
