@@ -16,7 +16,7 @@ uint8 maxlpx = 0;
 uint8 lEdge[64];
 uint8 rEdge[64];
 uint8 roadMid[64];
-
+uint8 roadWidth[64];
 
 
 void image_process()
@@ -29,7 +29,7 @@ void image_process()
         findEdge();
     }
     // Correlation_get();
-    // fsm_judge();
+    getError();
     // image_err_calculate();
 }
 
@@ -208,5 +208,13 @@ void findEdge(){
 			}
 		}
 		roadMid[i] = (lEdge[i] + rEdge[i])/2;
+        roadWidth[i] = rEdge[i] - lEdge[i];
+	}
+}
+
+void getError(){
+    error = 0;
+    for(int i = prospectU; i < prospectL; i++){
+        error += (roadMid[i] - IMAGEMIDLINE) * roadWidth[i] / 128;
 	}
 }

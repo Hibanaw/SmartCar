@@ -278,6 +278,7 @@ void slaveShowStatus()
     tft180_draw_line(0, 64, 127, 64, RGB565_GRAY);
     tft180_set_color(RGB565_BLACK, RGB565_WHITE);
     tft180_show_int(0, 80, threshold, 3);
+    tft180_show_int(0, 90, error, 5);
     if (showImageLine)
     {
         tft180_draw_line(maxlpx, 63 - maxl, maxlpx, 63,

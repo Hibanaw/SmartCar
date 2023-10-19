@@ -22,9 +22,7 @@ void downsample(const uint8 image_ori[MT9V03X_H][MT9V03X_W]);
 void binarize();
 void getLongestWhiteline();
 void findEdge();
-void judge_useful_line();
-void get_edge_center_useline();
-void Correlation_get();
+void getError();
 void image_err_calculate();
 float limiter(float value, float min, float max);
 
