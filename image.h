@@ -22,6 +22,7 @@ void downsample(const uint8 image_ori[MT9V03X_H][MT9V03X_W]);
 void binarize();
 void getLongestWhiteline();
 void findEdge();
+void fsmJudge();
 void getError();
 void image_err_calculate();
 float limiter(float value, float min, float max);

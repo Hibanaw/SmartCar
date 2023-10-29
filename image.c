@@ -18,28 +18,30 @@ uint8 rEdge[64];
 uint8 roadMid[64];
 uint8 roadWidth[64];
 
+uint8 rowWeight[64];
 
 void image_process()
 {
     downsample(mt9v03x_image);
     // downsample(imagea);
-    if(doBin)binarize();
-    if(doCal){
+    if (doBin)
+        binarize();
+    if (doCal)
+    {
         getLongestWhiteline();
         findEdge();
+        getError();
     }
-    // Correlation_get();
-    getError();
+    // fsmJudge();
     // image_err_calculate();
 }
-
 
 uint8 otsu()
 {
     uint8 tvalue;
-    uint16 histogram[DOWNSAMPLE_S] = { 0 };
-    uint32 histstd[DOWNSAMPLE_S] = { 0 };
-    
+    uint16 histogram[DOWNSAMPLE_S] = {0};
+    uint32 histstd[DOWNSAMPLE_S] = {0};
+
     // 直方图统计
     for (uint16 y = 0; y < IMAGE_HEIGHT; y += DOWNSAMPLE_Y)
     {
@@ -48,7 +50,7 @@ uint8 otsu()
             histogram[image[y][x] / DOWNSAMPLE_C]++;
         }
     }
-    
+
     uint16 background_mean = 0;
     uint16 foreground_mean = 0;
     uint32 background_sum = 0;
@@ -56,26 +58,26 @@ uint8 otsu()
     uint16 background_n = 0;
     uint16 foreground_n = 0;
     uint16 i = thresMin / DOWNSAMPLE_C;
-    
+
     // 初始化积分表
     for (uint16 k = 0; k < i; k++)
     {
         background_n += histogram[k];
         background_sum += histogram[k] * k;
     }
-    
+
     for (uint16 k = i; k < DOWNSAMPLE_S; k++)
     {
         foreground_n += histogram[k];
         foreground_sum += histogram[k] * k;
     }
-    
+
     // 遍历计算类间方差
     for (; i <= thresMax / DOWNSAMPLE_C; i++)
     {
         background_n += histogram[i];
         foreground_n -= histogram[i];
-        
+
         if (!background_n)
         {
             continue;
@@ -88,20 +90,20 @@ uint8 otsu()
         {
             histstd[i] = histstd[i - 1];
         }
-        
+
         background_sum += histogram[i] * i;
         foreground_sum -= histogram[i] * i;
-        
+
         background_mean = background_sum / background_n;
         foreground_mean = foreground_sum / foreground_n;
-        
+
         histstd[i] = background_n * foreground_n * (int32)(background_mean - foreground_mean) * (int32)(background_mean - foreground_mean);
     }
-    
+
     uint32 temp = 0x00;
     uint16 thres = 0;
     uint16 thres_n = 0;
-    
+
     // 寻找方差最小的灰度级，如果有多个则取平均
     for (uint16 i = thresMin / DOWNSAMPLE_C; i <= thresMax / DOWNSAMPLE_C; i++)
     {
@@ -120,10 +122,10 @@ uint8 otsu()
             }
         }
     }
-    
+
     static uint16 flag = 0;
     static float last_thres = 0.0;
-    
+
     // 防止无效结果
     if (thres)
     {
@@ -133,56 +135,70 @@ uint8 otsu()
             last_thres = thres / (float)thres_n;
             flag = 1;
         }
-        
+
         last_thres = 0.95 * last_thres + 0.05 * thres / (float)thres_n;
-        
+
         tvalue = (uint16)(last_thres * DOWNSAMPLE_C);
     }
-    
+
     return tvalue;
 }
 
-void downsample(const uint8 image_ori[MT9V03X_H][MT9V03X_W]){
-    for(int i = 0; i < 64; i++){
-        for(int j = 0; j < 128; j++){
-            image[i][j] = image_ori[i*MT9V03X_H/64][j*MT9V03X_W/128];
+void downsample(const uint8 image_ori[MT9V03X_H][MT9V03X_W])
+{
+    for (int i = 0; i < 64; i++)
+    {
+        for (int j = 0; j < 128; j++)
+        {
+            image[i][j] = image_ori[i * MT9V03X_H / 64][j * MT9V03X_W / 128];
         }
     }
-    
 }
 
-void binarize(){
-    if(calThres)
+void binarize()
+{
+    if (calThres)
         threshold = otsu();
     uint8 thresholdMap[256] = {0};
-    if(!doBin) return;
-    for(int i = 0; i < threshold; i++){
+    if (!doBin)
+        return;
+    for (int i = 0; i < threshold; i++)
+    {
         thresholdMap[i] = 0;
     }
-    for(int i = threshold; i < 256; i++){
+    for (int i = threshold; i < 256; i++)
+    {
         thresholdMap[i] = -1;
     }
-    for(int i = 0; i < 64; i++){
-        for(int j = 0; j < 128; j++){
+    for (int i = 0; i < 64; i++)
+    {
+        for (int j = 0; j < 128; j++)
+        {
             image[i][j] = thresholdMap[image[i][j]];
         }
     }
 }
 
-void getLongestWhiteline(){
+void getLongestWhiteline()
+{
     uint16 sum;
     uint8 lcount;
     maxl = 0;
     maxlpx = 0;
-    for(int i = 0; i < 128; i++){
-        for(int j = 63; j >= 0; j--){
-            if(!image[j][i]){
-                if(63-j > maxl){
-                    maxl = 63-j;
+    for (int i = 0; i < 128; i++)
+    {
+        for (int j = 63; j >= 0; j--)
+        {
+            if (!image[j][i])
+            {
+                if (63 - j > maxl)
+                {
+                    maxl = 63 - j;
                     sum = i;
                     lcount = 1;
                 }
-                if(63-j == maxl){
+                if (63 - j == maxl)
+                {
                     sum += i;
                     lcount++;
                 }
@@ -190,31 +206,42 @@ void getLongestWhiteline(){
             }
         }
     }
-    maxlpx = sum/lcount;
+    maxlpx = sum / lcount;
 }
 
-void findEdge(){
-	for(int i = 63-maxl; i < 64; i++){
-		for(int j = maxlpx; j >= 0; j--){
-			if(!image[i][j] || j == 0){
-				lEdge[i] = j;
-				break;
-			}
-		}
-		for(int j = maxlpx; j < 128; j++){
-			if(!image[i][j] || j == 127){
-				rEdge[i] = j;
-				break;
-			}
-		}
-		roadMid[i] = (lEdge[i] + rEdge[i])/2;
+void findEdge()
+{
+    for (int i = 63 - maxl; i < 64; i++)
+    {
+        for (int j = maxlpx; j >= 0; j--)
+        {
+            if (!image[i][j] || j == 0)
+            {
+                lEdge[i] = j;
+                break;
+            }
+        }
+        for (int j = maxlpx; j < 128; j++)
+        {
+            if (!image[i][j] || j == 127)
+            {
+                rEdge[i] = j;
+                break;
+            }
+        }
+        roadMid[i] = (lEdge[i] + rEdge[i]) / 2;
         roadWidth[i] = rEdge[i] - lEdge[i];
-	}
+    }
 }
 
-void getError(){
+void getError()
+{
     error = 0;
-    for(int i = prospectU; i < prospectL; i++){
-        error += (roadMid[i] - IMAGEMIDLINE) * roadWidth[i] / 128;
-	}
+    uint16 weightSum = 0;
+    for (int i = prospectU; i < prospectL; i++)
+    {
+        error += (roadMid[i] - IMAGEMIDLINE) * i;
+        weightSum += i;
+    }
+    error /= weightSum;
 }
