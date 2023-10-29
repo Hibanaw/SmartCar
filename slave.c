@@ -10,17 +10,21 @@ int8 showImageLine = 1;
 
 const uint8 pageCount = 4;
 struct SlavePage slavePage[5] = {
+    {"Moni."},
     {"Home",
      {{"DoBin", SWITCH},
       {"DoOtsu", SWITCH},
-      {"SetT", VALUE},
-      {"DoCal", SWITCH}},
-     4},
+      {"DoCal", SWITCH},
+      {"DoMot", SWITCH},
+      {"DoStr", SWITCH}},
+     5},
     {"Cont.",
      {{"ProU", VALUE, 0, 127},
-      {"ProL", VALUE, 0, 127}},
-     2},
-    {"Moni."},
+      {"ProL", VALUE, 0, 127},
+      {"Kp", VALUE},
+      {"Ki", VALUE},
+      {"Kd", VALUE}},
+     5},
     {"About"}};
 
 void slaveInit()
@@ -69,10 +73,16 @@ void slaveSave()
         }
     }
     saveParameterToFlash();
-    doBin = slavePage[0].option[0].data;
-    calThres = slavePage[0].option[1].data;
-    threshold = slavePage[0].option[2].data;
-    doCal = slavePage[0].option[3].data;
+    doBin = slavePage[1].option[0].data;
+    calThres = slavePage[1].option[1].data;
+    doCal = slavePage[1].option[2].data;
+    doMotor = slavePage[1].option[3].data;
+    doSteer = slavePage[1].option[4].data;
+    prospectU = slavePage[2].option[0].data;
+    prospectL = slavePage[2].option[1].data;
+    servoKp = slavePage[2].option[2].data;
+    servoKi = slavePage[2].option[3].data;
+    servoKd = slavePage[2].option[4].data;
 }
 
 void slaveEvent()
@@ -278,7 +288,8 @@ void slaveShowStatus()
     tft180_draw_line(0, 64, 127, 64, RGB565_GRAY);
     tft180_set_color(RGB565_BLACK, RGB565_WHITE);
     tft180_show_int(0, 80, threshold, 3);
-    tft180_show_int(0, 90, error, 5);
+    tft180_show_int(0, 90, error, 3);
+    tft180_show_int(0, 100, output, 10);
     if (showImageLine)
     {
         tft180_draw_line(maxlpx, 63 - maxl, maxlpx, 63,

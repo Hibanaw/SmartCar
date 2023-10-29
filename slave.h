@@ -8,7 +8,6 @@
 #include "param.h"
 #include "flash.h"
 #include "button.h"
-#include "pwm.h"
 #include "switch.h"
 #include "image.h"
 
