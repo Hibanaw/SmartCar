@@ -21,6 +21,17 @@ extern uint8 prospectU;
 
 extern int32 error;
 
+
+extern int32 servoKp;
+extern int32 servoKi;
+extern int32 servoKd;
+
+extern int32 output;
+
+
+extern uint8 doMotor;
+extern uint8 doSteer;
+
 extern const uint16 image_data[];
 extern const uint8 imagea[120][188];
 #endif 
