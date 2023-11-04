@@ -13,7 +13,7 @@
 
 #define STEER (TIM2_PWM_CH1_A15)
 
-#define STEER_MID (535)
+#define STEER_MID (530)
 #define STEER_RANGE (70)
 
 
