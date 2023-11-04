@@ -11,13 +11,14 @@ int8 showImageLine = 1;
 const uint8 pageCount = 4;
 struct SlavePage slavePage[5] = {
     {"Moni."},
-    {"Home",
+    {"Basic",
      {{"DoBin", SWITCH},
       {"DoOtsu", SWITCH},
       {"DoCal", SWITCH},
       {"DoMot", SWITCH},
-      {"DoStr", SWITCH}},
-     5},
+      {"DoStr", SWITCH},
+      {"Duty", VALUE, 0, 10000}},
+     6},
     {"Cont.",
      {{"ProU", VALUE, 0, 127},
       {"ProL", VALUE, 0, 127},
@@ -34,7 +35,7 @@ void slaveInit()
     {
         for (int j = 0; j < 10; j++)
         {
-            slavePage[i].option[j].data = flash_union_buffer[i * 5 + j].int32_type;
+            slavePage[i].option[j].data = flash_union_buffer[i * 10 + j].int32_type;
             if (!slavePage[i].option[j].lRange && !slavePage[i].option[j].rRange)
             {
                 slavePage[i].option[j].rRange = 99999;
@@ -69,7 +70,7 @@ void slaveSave()
     {
         for (int j = 0; j < 10; j++)
         {
-            flash_union_buffer[i * 5 + j].int32_type = slavePage[i].option[j].data;
+            flash_union_buffer[i * 10 + j].int32_type = slavePage[i].option[j].data;
         }
     }
     saveParameterToFlash();
@@ -78,6 +79,7 @@ void slaveSave()
     doCal = slavePage[1].option[2].data;
     doMotor = slavePage[1].option[3].data;
     doSteer = slavePage[1].option[4].data;
+    duty = slavePage[1].option[5].data;
     prospectU = slavePage[2].option[0].data;
     prospectL = slavePage[2].option[1].data;
     servoKp = slavePage[2].option[2].data;

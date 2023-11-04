@@ -6,8 +6,6 @@
 #define IMAGEMIDLINE 64
 
 extern uint16 g_button;
-extern uint16 duty[];
-
 
 extern uint8 thresMax;
 extern uint8 thresMin;
@@ -31,6 +29,8 @@ extern int32 output;
 
 extern uint8 doMotor;
 extern uint8 doSteer;
+
+extern uint16 duty;
 
 extern const uint16 image_data[];
 extern const uint8 imagea[120][188];

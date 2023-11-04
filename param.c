@@ -2,8 +2,6 @@
 
 uint16 g_button = 0;
 
-uint16 duty[4] = {0};
-
 // 图像相关变量
 uint8 thresMax = 200;
 uint8 thresMin = 80;
@@ -27,6 +25,8 @@ int32 output;
 
 uint8 doMotor;
 uint8 doSteer;
+
+uint16 duty;
 
 
 const uint8_t imagea[120][188] = {

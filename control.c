@@ -3,7 +3,7 @@
 
 void control(){
     if(doMotor){
-        motorOutput(2000, 2000);
+        motorOutput(duty, duty);
     }
     if(doSteer){
         pidControl();
@@ -17,9 +17,9 @@ void pidControl()
     int32 outputP;
     int32 outputD;
     output = 0;
-    outputP = error * servoKp/1000;
-    outputI += error * servoKi/1000;
-    outputD = (error - preError) * servoKd/1000;
+    outputP = error * servoKp / 1000;
+    outputI += error * servoKi / 1000;
+    outputD = (error - preError) * servoKd / 1000;
     output = outputP + outputI + outputD;
     preError = error;
     steerOutput(output);
