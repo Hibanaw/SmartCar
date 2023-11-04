@@ -238,7 +238,7 @@ void getError()
 {
     error = 0;
     uint16 weightSum = 0;
-    for (int i = prospectU; i < prospectL; i++)
+    for (int i = 63-maxl; i < prospectL; i++)
     {
         error += (roadMid[i] - IMAGEMIDLINE) * i;
         weightSum += i;
