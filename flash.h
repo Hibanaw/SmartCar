@@ -2,8 +2,6 @@
 #define _FLASH_H_
 
 #include "zf_common_headfile.h"
-#include "param.h"
-
 
 extern flash_data_union flash_union_buffer[];
 

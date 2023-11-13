@@ -1,5 +1,7 @@
 #include "flash.h"
 
+#include "zf_common_headfile.h"
+#include "param.h"
 void readParameterFromFlash(void)
 {
   flash_read_page_to_buffer(126, 3);

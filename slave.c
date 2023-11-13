@@ -1,5 +1,13 @@
 #include "slave.h"
 
+#include <math.h>
+#include "zf_common_headfile.h"
+#include "param.h"
+#include "flash.h"
+#include "button.h"
+#include "switch.h"
+#include "image.h"
+
 int8 page = 0;
 int8 option = 0;
 int8 focusLevel = 0;
@@ -82,9 +90,9 @@ void slaveSave()
     duty = slavePage[1].option[5].data;
     prospectU = slavePage[2].option[0].data;
     prospectL = slavePage[2].option[1].data;
-    servoKp = slavePage[2].option[2].data;
-    servoKi = slavePage[2].option[3].data;
-    servoKd = slavePage[2].option[4].data;
+    steerKp = slavePage[2].option[2].data;
+    steerKi = slavePage[2].option[3].data;
+    steerKd = slavePage[2].option[4].data;
 }
 
 void slaveEvent()
@@ -93,7 +101,7 @@ void slaveEvent()
     switchScan();
     if (slavePage[page].title == "Moni.")
         slaveShowStatus();
-    // è‹¥æ‹¨ç‰‡æ‹¨å¼€ï¼ŒæŒ‰ä½ä¿®æ”¹
+    // Èô²¦Æ¬²¦¿ª£¬°´Î»ĞŞ??
     if (switch1 && focusLevel == 2)
     {
         focusLevel = 3;
@@ -290,24 +298,24 @@ void slaveShowStatus()
     tft180_draw_line(0, 64, 127, 64, RGB565_GRAY);
     tft180_set_color(RGB565_BLACK, RGB565_WHITE);
     tft180_show_int(0, 80, threshold, 3);
-    tft180_show_int(0, 90, error, 3);
-    tft180_show_int(0, 100, output, 10);
+    tft180_show_int(0, 90, steerError, 3);
+    tft180_show_int(0, 100, steerTarget, 10);
     if (showImageLine)
     {
         tft180_draw_line(maxlpx, 63 - maxl, maxlpx, 63,
-                         RGB565_YELLOW); // æœ€é•¿ç™½åˆ—
+                         RGB565_YELLOW); // ×î³¤°×Ïß
         tft180_draw_line(IMAGEMIDLINE, 0, IMAGEMIDLINE, 63,
-                         RGB565_BLUE); // å›¾åƒä¸­çº¿
+                         RGB565_BLUE); // Í¼ÏñÖĞÏß
         for (int i = 63 - maxl; i < 64; i++)
         {
-            tft180_draw_point(lEdge[i], i, RGB565_RED);   // å·¦è¾¹ç¼˜
-            tft180_draw_point(rEdge[i], i, RGB565_RED);   // å³è¾¹ç¼˜
-            tft180_draw_point(roadMid[i], i, RGB565_RED); // é“è·¯ä¸­çº¿
+            tft180_draw_point(lEdge[i], i, RGB565_RED);   // ×ó±ßÏß
+            tft180_draw_point(rEdge[i], i, RGB565_RED);   // ÓÒ±ßÏß
+            tft180_draw_point(roadMid[i], i, RGB565_RED); // µÀÂ·ÖĞÏß
         }
         tft180_draw_line(0, prospectL, 127, prospectL,
-                         RGB565_CYAN); // å‰ç»ä¸Šè¾¹æ²¿
+                         RGB565_CYAN); // Ç°Õ°ÉÏ±ßÏß
         tft180_draw_line(0, prospectU, 127, prospectU,
-                         RGB565_PURPLE); // å‰ç»ä¸‹è¾¹æ²¿
+                         RGB565_PURPLE); // Ç°Õ°ÏÂ±ßÏß
     }
 }
 

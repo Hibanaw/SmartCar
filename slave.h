@@ -1,15 +1,7 @@
 #ifndef _SLAVE_H_
 #define _SLAVE_H_
 
-#include "zf_common_headfile.h"
-
-#include <math.h>
-
-#include "param.h"
-#include "flash.h"
-#include "button.h"
-#include "switch.h"
-#include "image.h"
+#include "zf_common_typedef.h"
 
 enum SLAVE_BUTTON_ID{
     SLAVEBUTTONUP = BUTTON_3,
