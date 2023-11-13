@@ -1,26 +1,52 @@
 #include "control.h"
 
+#include "zf_common_headfile.h"
+
+#include "encoder.h"
+#include "param.h"
+#include "servo.h"
 
 void control(){
     if(doMotor){
-        motorOutput(duty, duty);
+        motorControl();
     }
     if(doSteer){
-        pidControl();
+        steerControl();
     }
 }
 
-void pidControl()
+void motorControl(){
+    float speed = (lSpeed + rSpeed) / 2;
+    static float error[3];
+    static int32 output;
+    int32 preOuput;
+    int32 outputP;
+    int32 outputI;
+    int32 outputD;
+    preOuput = output;
+    error[2] = error[1];
+    error[1] = error[0];
+    error[0] = speedTarget - speed;
+    outputP = motorKp * (error[0] - error[1]);
+    outputI = motorKi * error[0];
+    outputD = motorKd * (error[0]-2*error[1]+error[2]);
+    output = outputP + outputI + outputD + preOuput;
+    motorOutput(output, output);
+}
+
+
+void steerControl()
 {
     static int32 preError;
     static int32 outputI;
     int32 outputP;
     int32 outputD;
-    output = 0;
-    outputP = error * servoKp / 1000;
-    outputI += error * servoKi / 1000;
-    outputD = (error - preError) * servoKd / 1000;
+    int32 output = 0;
+    outputP = steerError * steerKp / 1000;
+    outputI += steerError * steerKi / 1000;
+    outputD = (steerError - preError) * steerKd / 1000;
     output = outputP + outputI + outputD;
-    preError = error;
+    preError = steerError;
+    steerTarget = output;
     steerOutput(output);
 }
