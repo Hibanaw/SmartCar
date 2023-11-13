@@ -2,11 +2,10 @@
 
 uint16 g_button = 0;
 
-// 鍥惧儚鐩稿叧鍙橀噺
+// 图像相关变量
 uint8 thresMax = 200;
 uint8 thresMin = 80;
 
-uint8 image[64][128];
 
 uint8 doBin;
 uint8 calThres;
@@ -15,13 +14,18 @@ uint8 doCal;
 uint8 prospectL;
 uint8 prospectU;
 
-int32 error; //-64~64
+int32 steerError; //-64~64
 
-int32 servoKp;
-int32 servoKi;
-int32 servoKd;
+int32 steerKp;
+int32 steerKi;
+int32 steerKd;
 
-int32 output;
+int32 motorKp;
+int32 motorKi;
+int32 motorKd;
+
+int32 steerTarget;
+int32 speedTarget;
 
 uint8 doMotor;
 uint8 doSteer;

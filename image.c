@@ -8,6 +8,8 @@
 #define SEARCH_LEFT 10
 #define SEARCH_RIGHT 117
 
+uint8 image[64][128];
+
 uint8 threshold = 0;
 
 uint8 maxl = 0;
@@ -30,7 +32,7 @@ void image_process()
     {
         getLongestWhiteline();
         findEdge();
-        getError();
+        getSteerError();
     }
     // fsmJudge();
     // image_err_calculate();
@@ -42,7 +44,7 @@ uint8 otsu()
     uint16 histogram[DOWNSAMPLE_S] = {0};
     uint32 histstd[DOWNSAMPLE_S] = {0};
 
-    // 直方图统计
+    // 直方图统�?
     for (uint16 y = 0; y < IMAGE_HEIGHT; y += DOWNSAMPLE_Y)
     {
         for (uint16 x = SEARCH_LEFT; x <= SEARCH_RIGHT; x += DOWNSAMPLE_X)
@@ -104,7 +106,7 @@ uint8 otsu()
     uint16 thres = 0;
     uint16 thres_n = 0;
 
-    // 寻找方差最小的灰度级，如果有多个则取平均
+    // 寻找方差最小的灰度级，如果有多个则取平�?
     for (uint16 i = thresMin / DOWNSAMPLE_C; i <= thresMax / DOWNSAMPLE_C; i++)
     {
         if (histstd[i])
@@ -129,7 +131,7 @@ uint8 otsu()
     // 防止无效结果
     if (thres)
     {
-        // 首次进入更新记录阈值
+        // 首次进入更新记录阈�?
         if (!flag)
         {
             last_thres = thres / (float)thres_n;
@@ -234,14 +236,14 @@ void findEdge()
     }
 }
 
-void getError()
+void getSteerError()
 {
-    error = 0;
+    steerError = 0;
     uint16 weightSum = 0;
     for (int i = 63-maxl; i < prospectL; i++)
     {
-        error += (roadMid[i] - IMAGEMIDLINE) * i;
+        steerError += (roadMid[i] - IMAGEMIDLINE) * i;
         weightSum += i;
     }
-    error /= weightSum;
+    steerError /= weightSum;
 }

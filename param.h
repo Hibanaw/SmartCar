@@ -17,14 +17,19 @@ extern uint8 doCal;
 extern uint8 prospectL;
 extern uint8 prospectU;
 
-extern int32 error;
+extern int32 steerError;
 
 
-extern int32 servoKp;
-extern int32 servoKi;
-extern int32 servoKd;
+extern int32 steerKp;
+extern int32 steerKi;
+extern int32 steerKd;
 
-extern int32 output;
+extern int32 motorKp;
+extern int32 motorKi;
+extern int32 motorKd;
+
+extern int32 steerTarget;
+extern int32 speedTarget;
 
 
 extern uint8 doMotor;

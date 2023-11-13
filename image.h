@@ -7,6 +7,7 @@
 
 
 extern uint8 image[64][128];
+
 extern uint8 whiteLineLength[128];
 extern uint8 whiteLineStart[128];
 extern uint8 threshold;
@@ -23,7 +24,7 @@ void binarize();
 void getLongestWhiteline();
 void findEdge();
 void fsmJudge();
-void getError();
+void getSteerError();
 void image_err_calculate();
 float limiter(float value, float min, float max);
 
