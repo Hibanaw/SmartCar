@@ -1,10 +1,6 @@
 #ifndef _BUTTON_H_
 #define _BUTTON_H_
 
-#include "zf_common_headfile.h"
-#include "param.h"
-
-
 enum BUTTON_ID
 {
   BUTTON_NONE = 0,

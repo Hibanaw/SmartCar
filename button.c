@@ -1,12 +1,15 @@
 #include "button.h"
 
+#include "zf_common_headfile.h"
+#include "param.h"
+#include "definition.h"
 
 void buttonInit()
 {
-  gpio_init(D0, GPI, GPIO_HIGH, GPI_PULL_UP);
-  gpio_init(D1, GPI, GPIO_HIGH, GPI_PULL_UP);
-  gpio_init(D2, GPI, GPIO_HIGH, GPI_PULL_UP);
-  gpio_init(D3, GPI, GPIO_HIGH, GPI_PULL_UP);
+  gpio_init(PIN_BUTTON_0, GPI, GPIO_HIGH, GPI_PULL_UP);
+  gpio_init(PIN_BUTTON_1, GPI, GPIO_HIGH, GPI_PULL_UP);
+  gpio_init(PIN_BUTTON_2, GPI, GPIO_HIGH, GPI_PULL_UP);
+  gpio_init(PIN_BUTTON_3, GPI, GPIO_HIGH, GPI_PULL_UP);
 }
 
 void buttonScan()
@@ -14,22 +17,22 @@ void buttonScan()
   static uint8 key;
   key <<= 4;
 
-  if (!gpio_get_level(D0))
+  if (!gpio_get_level(PIN_BUTTON_0))
   {
     key += BUTTON_1;
   }
-  else if (!gpio_get_level(D1))
+  else if (!gpio_get_level(PIN_BUTTON_1))
   {
     key += BUTTON_2;
   }
-  else if (!gpio_get_level(D2))
+  else if (!gpio_get_level(PIN_BUTTON_2))
   {
     key += BUTTON_3;
   }
-  else if (!gpio_get_level(D3))
+  else if (!gpio_get_level(PIN_BUTTON_3))
   {
     key += BUTTON_4;
   }
-  // ä½Žå››ä½æœ‰å€¼çš„è¯å°±ä¸è¾“å‡º,ä½Žå››ä½æ— å€¼åˆ™è¾“å‡ºç›¸åº”é”®å€¼
+  // µÍËÄÎ»ÓÐÖµµÄ»°¾Í²»Êä³ö£¬µÍËÄÎ»ÎÞÖµÔòÊä³öÏàÓ¦¼üÖµ
   g_button = (key & 0x0f) ? BUTTON_NONE : (key >> 4);
 }
