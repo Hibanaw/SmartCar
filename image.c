@@ -22,20 +22,151 @@ uint8 roadWidth[64];
 
 uint8 rowWeight[64];
 
+struct FeaturePoints
+{
+    uint8 Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, Ex, Ey, Fx, Fy;
+} fPoints;
+
+enum RouteState
+{
+    STRAIGHT,
+    LEFT_ROUNDABOUT_IN,
+    LEFT_ROUNDABOUT_KEEP,
+    LEFT_ROUNDABOUT_OUT,
+    RIGHT_ROUNDABOUT_IN,
+    RIGHT_ROUNDABOUT_KEEP,
+    RIGHT_ROUNDABOUT_OUT,
+    CROSS
+} state;
+
 void image_process()
 {
     downsample(mt9v03x_image);
-    // downsample(imagea);
     if (doBin)
         binarize();
     if (doCal)
     {
         getLongestWhiteline();
         findEdge();
+        findFeaturePoints();
+        fsmJudge();
+        edgeFix();
+        findPath();
         getSteerError();
     }
-    // fsmJudge();
-    // image_err_calculate();
+}
+
+void findFeaturePoints()
+{
+    memset(&fPoints, 0, sizeof(fPoints));
+    fPoints.Ay = fPoints.By = 63;
+    fPoints.Ax = lEdge[fPoints.Ay];
+    fPoints.Bx = rEdge[fPoints.By];
+    for (int i = 63; i > 63 - maxl; i--)
+    {
+        if (!fPoints.Cy && lEdge[i - 1] < lEdge[i])
+        {
+            fPoints.Cy = i;
+            fPoints.Cx = lEdge[i];
+        }
+        if (fPoints.Cy && lEdge[i - 1] > fPoints.Cx)
+        {
+            fPoints.Ey = i;
+            fPoints.Ex = lEdge[i];
+        }
+        if (!fPoints.Dy && rEdge[i - 1] < rEdge[i])
+        {
+            fPoints.Dy = i;
+            fPoints.Dx = rEdge[i];
+        }
+        if (fPoints.Dy && rEdge[i - 1] > fPoints.Dx)
+        {
+            fPoints.Fy = i;
+            fPoints.Fx = rEdge[i];
+        }
+    }
+}
+
+void fsmJudge()
+{
+    // 行驶在直线
+    if(state==STRAIGHT){
+        // 十字
+        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
+        {
+            state = CROSS;
+            return;
+        }
+
+        // 环岛
+        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.By == fPoints.Dy == fPoints.Fy)
+        {
+            state = LEFT_ROUNDABOUT_IN;
+            return;
+        }
+        if (fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By && fPoints.Ay == fPoints.Cy == fPoints.Ey)
+        {
+            state = RIGHT_ROUNDABOUT_IN;
+            return;
+        }
+    }
+
+    // 入环岛
+    if (state == LEFT_ROUNDABOUT_IN)
+    {
+        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy){
+            state = LEFT_ROUNDABOUT_KEEP;
+        }
+        return;
+    }
+    if (state == RIGHT_ROUNDABOUT_IN)
+    {
+        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy){
+            state = RIGHT_ROUNDABOUT_KEEP;
+        }
+        return;
+    }
+    // 出环岛
+    if (state == LEFT_ROUNDABOUT_KEEP){
+        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
+        {
+            state = LEFT_ROUNDABOUT_OUT;
+        }
+        return;
+    }
+    if (state == RIGHT_ROUNDABOUT_KEEP){
+        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
+        {
+            state = RIGHT_ROUNDABOUT_OUT;
+        }
+        return;
+    }
+
+    // // 直线
+    // if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+    // {
+    //     state = STRAIGHT;
+    //     return;
+    // }
+
+    // 其他所有情况按直线处理
+    state = STRAIGHT;
+}
+
+void edgeFix()
+{
+    switch (state)
+    {
+    case CROSS:
+        for (int i = fPoints.Cy; i >= fPoints.Ey; i--)
+        {
+            _drawLine(fPoints.Cx, fPoints.Cy, fPoints.Ex, fPoints.Ey, lEdge);
+            _drawLine(fPoints.Dx, fPoints.Dy, fPoints.Fx, fPoints.Fy, rEdge);
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 uint8 otsu()
@@ -44,7 +175,6 @@ uint8 otsu()
     uint16 histogram[DOWNSAMPLE_S] = {0};
     uint32 histstd[DOWNSAMPLE_S] = {0};
 
-    // 鐩存柟鍥剧粺璁?
     for (uint16 y = 0; y < IMAGE_HEIGHT; y += DOWNSAMPLE_Y)
     {
         for (uint16 x = SEARCH_LEFT; x <= SEARCH_RIGHT; x += DOWNSAMPLE_X)
@@ -61,7 +191,6 @@ uint8 otsu()
     uint16 foreground_n = 0;
     uint16 i = thresMin / DOWNSAMPLE_C;
 
-    // 鍒濆鍖栫Н鍒嗚〃
     for (uint16 k = 0; k < i; k++)
     {
         background_n += histogram[k];
@@ -74,7 +203,6 @@ uint8 otsu()
         foreground_sum += histogram[k] * k;
     }
 
-    // 閬嶅巻璁＄畻绫婚棿鏂瑰樊
     for (; i <= thresMax / DOWNSAMPLE_C; i++)
     {
         background_n += histogram[i];
@@ -106,7 +234,6 @@ uint8 otsu()
     uint16 thres = 0;
     uint16 thres_n = 0;
 
-    // 瀵绘壘鏂瑰樊鏈�灏忕殑鐏板害绾э紝濡傛灉鏈夊涓垯鍙栧钩鍧?
     for (uint16 i = thresMin / DOWNSAMPLE_C; i <= thresMax / DOWNSAMPLE_C; i++)
     {
         if (histstd[i])
@@ -128,10 +255,8 @@ uint8 otsu()
     static uint16 flag = 0;
     static float last_thres = 0.0;
 
-    // 闃叉鏃犳晥缁撴灉
     if (thres)
     {
-        // 棣栨杩涘叆鏇存柊璁板綍闃堝�?
         if (!flag)
         {
             last_thres = thres / (float)thres_n;
@@ -231,6 +356,13 @@ void findEdge()
                 break;
             }
         }
+    }
+}
+
+void findPath()
+{
+    for (int i = 63 - maxl; i < 64; i++)
+    {
         roadMid[i] = (lEdge[i] + rEdge[i]) / 2;
         roadWidth[i] = rEdge[i] - lEdge[i];
     }
@@ -240,10 +372,28 @@ void getSteerError()
 {
     steerError = 0;
     uint16 weightSum = 0;
-    for (int i = 63-maxl; i < prospectL; i++)
+    for (int i = 63 - maxl; i < prospectL; i++)
     {
         steerError += (roadMid[i] - IMAGEMIDLINE) * i;
         weightSum += i;
     }
     steerError /= weightSum;
+}
+
+void _drawLine(int x1, int y1, int x2, int y2, uint8 array[])
+{
+    if (y1 > y2)
+    {
+        int tmpx, tmpy;
+        tmpy = y1;
+        y2 = tmpy;
+        y1 = y2;
+        tmpx = x1;
+        x2 = tmpx;
+        x1 = x2;
+    }
+    for (int i = y1; i < y2; i++)
+    {
+        array[i] = x1 +(float32)(x2 - x1) / (y2 - y1);
+    }
 }

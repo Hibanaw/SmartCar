@@ -24,8 +24,10 @@ void binarize();
 void getLongestWhiteline();
 void findEdge();
 void fsmJudge();
+void edgeFix();
+void findPath();
 void getSteerError();
-void image_err_calculate();
-float limiter(float value, float min, float max);
+
+void _drawLine(int x1, int y1, int x2, int y2, uint8 array[])
 
 #endif
