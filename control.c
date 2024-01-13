@@ -16,22 +16,39 @@ void control(){
 }
 
 void motorControl(){
-    float speed = (lSpeed + rSpeed) / 2;
-    static float error[3];
-    static int32 output;
-    int32 preOuput;
-    int32 outputP;
-    int32 outputI;
-    int32 outputD;
-    preOuput = output;
-    error[2] = error[1];
-    error[1] = error[0];
-    error[0] = speedTarget - speed;
-    outputP = motorKp * (error[0] - error[1]);
-    outputI = motorKi * error[0];
-    outputD = motorKd * (error[0]-2*error[1]+error[2]);
-    output = outputP + outputI + outputD + preOuput;
-    motorOutput(output, output);
+    static float lError[3];
+    static float rError[3];
+    static int32 lOutput;
+    static int32 rOutput;
+    int32 lPreOuput;
+    int32 lOutputP;
+    int32 lOutputI;
+    int32 lOutputD;
+
+    int32 rPreOuput;
+    int32 rOutputP;
+    int32 rOutputI;
+    int32 rOutputD;
+
+    lPreOuput = lOutput;
+    lError[2] = lError[1];
+    lError[1] = lError[0];
+    lError[0] = speedTarget - lSpeed;
+    lOutputP = motorKp * (lError[0] - lError[1]);
+    lOutputI = motorKi * lError[0];
+    lOutputD = motorKd * (lError[0]-2*lError[1]+lError[2]);
+    lOutput = lOutputP + lOutputI + lOutputD + lPreOuput;
+
+    rPreOuput = rOutput;
+    rError[2] = rError[1];
+    rError[1] = rError[0];
+    rError[0] = speedTarget - rSpeed;
+    rOutputP = motorKp * (rError[0] - rError[1]);
+    rOutputI = motorKi * rError[0];
+    rOutputD = motorKd * (rError[0]-2*rError[1]+rError[2]);
+    rOutput = lOutputP + lOutputI + lOutputD + lPreOuput;
+
+    motorOutput(lOutput, rOutput);
 }
 
 
