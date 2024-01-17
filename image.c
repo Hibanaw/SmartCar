@@ -1,12 +1,16 @@
 #include "image.h"
+#include "zf_common_headfile.h"
 
-#define DOWNSAMPLE_S 100
-#define DOWNSAMPLE_C 5
-#define IMAGE_HEIGHT 64
-#define DOWNSAMPLE_X 10
-#define DOWNSAMPLE_Y 8
-#define SEARCH_LEFT 10
-#define SEARCH_RIGHT 117
+#define DOWNSAMPLE_S (100)
+#define DOWNSAMPLE_C (5)
+#define IMAGE_HEIGHT (64)
+#define DOWNSAMPLE_X (10)
+#define DOWNSAMPLE_Y (8)
+#define SEARCH_LEFT (10)
+#define SEARCH_RIGHT (117)
+
+#define DIFF_DT (1)
+#define DIFF_THRESHOLD (ANGLE_TO_RAD(10))
 
 uint8 image[64][128];
 
@@ -22,22 +26,9 @@ uint8 roadWidth[64];
 
 uint8 rowWeight[64];
 
-struct FeaturePoints
-{
-    uint8 Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, Ex, Ey, Fx, Fy;
-} fPoints;
+struct FeaturePoints fPoints;
 
-enum RouteState
-{
-    STRAIGHT,
-    LEFT_ROUNDABOUT_IN,
-    LEFT_ROUNDABOUT_KEEP,
-    LEFT_ROUNDABOUT_OUT,
-    RIGHT_ROUNDABOUT_IN,
-    RIGHT_ROUNDABOUT_KEEP,
-    RIGHT_ROUNDABOUT_OUT,
-    CROSS
-} state;
+enum RouteState state;
 
 void image_process()
 {
@@ -62,8 +53,30 @@ void findFeaturePoints()
     fPoints.Ay = fPoints.By = 63;
     fPoints.Ax = lEdge[fPoints.Ay];
     fPoints.Bx = rEdge[fPoints.By];
+    float32 pdl, pdr;
     for (int i = 63; i > 63 - maxl; i--)
     {
+        float32 dl, dr;
+        if (i <= 63 - DIFF_DT && i >= DIFF_DT)
+        {
+            dl = lEdge[i - DIFF_DT] - lEdge[i + DIFF_DT] / (2 * DIFF_DT);
+            dr = rEdge[i - DIFF_DT] - rEdge[i + DIFF_DT] / (2 * DIFF_DT);
+            if (i > DIFF_DT)
+            {
+                if (abs(atan(dl) - atan(pdl)) > DIFF_THRESHOLD)
+                {
+                    fPoints.Gx = lEdge[i];
+                    fPoints.Gy = i;
+                }
+                if (abs(atan(dr) - atan(pdr)) > DIFF_THRESHOLD)
+                {
+                    fPoints.Hx = rEdge[i];
+                    fPoints.Hy = i;
+                }
+            }
+            pdl = dl;
+            pdr = dr;
+        }
         if (!fPoints.Cy && lEdge[i - 1] < lEdge[i])
         {
             fPoints.Cy = i;
@@ -90,7 +103,8 @@ void findFeaturePoints()
 void fsmJudge()
 {
     // 行驶在直线
-    if(state==STRAIGHT){
+    if (state == STRAIGHT)
+    {
         // 十字
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
         {
@@ -114,32 +128,50 @@ void fsmJudge()
     // 入环岛
     if (state == LEFT_ROUNDABOUT_IN)
     {
-        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy){
+        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+        {
             state = LEFT_ROUNDABOUT_KEEP;
         }
         return;
     }
     if (state == RIGHT_ROUNDABOUT_IN)
     {
-        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy){
+        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+        {
             state = RIGHT_ROUNDABOUT_KEEP;
         }
         return;
     }
     // 出环岛
-    if (state == LEFT_ROUNDABOUT_KEEP){
+    if (state == LEFT_ROUNDABOUT_KEEP)
+    {
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
         {
             state = LEFT_ROUNDABOUT_OUT;
         }
         return;
     }
-    if (state == RIGHT_ROUNDABOUT_KEEP){
+    if (state == RIGHT_ROUNDABOUT_KEEP)
+    {
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
         {
             state = RIGHT_ROUNDABOUT_OUT;
         }
         return;
+    }
+
+    // 上坡
+    if (state == STRAIGHT || state == UPHILL)
+    {
+        if (fPoints.Gy != fPoints.Ay && fPoints.Hy != fPoints.By)
+        {
+            state = UPHILL;
+            return;
+        }
+        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+        {
+            state = STRAIGHT;
+        }
     }
 
     // // 直线
@@ -394,6 +426,6 @@ void _drawLine(int x1, int y1, int x2, int y2, uint8 array[])
     }
     for (int i = y1; i < y2; i++)
     {
-        array[i] = x1 +(float32)(x2 - x1) / (y2 - y1);
+        array[i] = x1 + (float32)(x2 - x1) / (y2 - y1);
     }
 }
