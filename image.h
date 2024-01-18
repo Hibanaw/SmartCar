@@ -27,6 +27,9 @@ extern struct FeaturePoints
 
 extern enum RouteState
 {
+    PARK_IN,
+    PARK_OUT,
+    STOP,
     STRAIGHT,
     LEFT_ROUNDABOUT_IN,
     LEFT_ROUNDABOUT_KEEP,
@@ -35,8 +38,8 @@ extern enum RouteState
     RIGHT_ROUNDABOUT_KEEP,
     RIGHT_ROUNDABOUT_OUT,
     CROSS,
-    UPHILL
-} state;
+    UPHILL,
+} routeState;
 
 void image_process();
 uint8 otsu();
@@ -51,5 +54,5 @@ void getSteerError();
 void findFeaturePoints();
 
 void _drawLine(int x1, int y1, int x2, int y2, uint8 array[]);
-
+void _drawArc(int x1, int y1, int x2, int y2, uint8 array[]);
 #endif

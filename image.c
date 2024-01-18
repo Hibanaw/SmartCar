@@ -12,6 +12,7 @@
 #define DIFF_DT (1)
 #define DIFF_THRESHOLD (ANGLE_TO_RAD(10))
 
+
 uint8 image[64][128];
 
 uint8 threshold = 0;
@@ -28,7 +29,7 @@ uint8 rowWeight[64];
 
 struct FeaturePoints fPoints;
 
-enum RouteState state;
+enum RouteState routeState;
 
 void image_process()
 {
@@ -41,7 +42,8 @@ void image_process()
         findEdge();
         findFeaturePoints();
         fsmJudge();
-        edgeFix();
+        if(doEdgeFix)
+            edgeFix();
         findPath();
         getSteerError();
     }
@@ -102,75 +104,96 @@ void findFeaturePoints()
 
 void fsmJudge()
 {
+    // 停车
+    for(int i = 0, c = 0; i < 128; i++){
+        if(c > 100){
+            routeState = STOP;
+            return;
+        }
+        if(image[prospectU][i] == 0){
+            c++;
+        }
+    }
     // 行驶在直线
-    if (state == STRAIGHT)
+    if (routeState == STRAIGHT)
     {
         // 十字
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
         {
-            state = CROSS;
+            routeState = CROSS;
             return;
         }
 
         // 环岛
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.By == fPoints.Dy == fPoints.Fy)
         {
-            state = LEFT_ROUNDABOUT_IN;
+            routeState = LEFT_ROUNDABOUT_IN;
             return;
         }
         if (fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By && fPoints.Ay == fPoints.Cy == fPoints.Ey)
         {
-            state = RIGHT_ROUNDABOUT_IN;
+            routeState = RIGHT_ROUNDABOUT_IN;
             return;
+        }
+
+        // 车库
+        for(int i = prospectL, c = 0; i > prospectU; i--){
+            if(c > 5){
+                routeState = PARK_IN;
+                return;
+            }
+            if(image[i][IMAGEMIDLINE] == 0){
+                c++;
+            }
         }
     }
 
     // 入环岛
-    if (state == LEFT_ROUNDABOUT_IN)
+    if (routeState == LEFT_ROUNDABOUT_IN)
     {
         if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
         {
-            state = LEFT_ROUNDABOUT_KEEP;
+            routeState = LEFT_ROUNDABOUT_KEEP;
         }
         return;
     }
-    if (state == RIGHT_ROUNDABOUT_IN)
+    if (routeState == RIGHT_ROUNDABOUT_IN)
     {
         if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
         {
-            state = RIGHT_ROUNDABOUT_KEEP;
+            routeState = RIGHT_ROUNDABOUT_KEEP;
         }
         return;
     }
     // 出环岛
-    if (state == LEFT_ROUNDABOUT_KEEP)
+    if (routeState == LEFT_ROUNDABOUT_KEEP)
     {
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
         {
-            state = LEFT_ROUNDABOUT_OUT;
+            routeState = LEFT_ROUNDABOUT_OUT;
         }
         return;
     }
-    if (state == RIGHT_ROUNDABOUT_KEEP)
+    if (routeState == RIGHT_ROUNDABOUT_KEEP)
     {
         if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
         {
-            state = RIGHT_ROUNDABOUT_OUT;
+            routeState = RIGHT_ROUNDABOUT_OUT;
         }
         return;
     }
 
     // 上坡
-    if (state == STRAIGHT || state == UPHILL)
+    if (routeState == STRAIGHT || routeState == UPHILL)
     {
         if (fPoints.Gy != fPoints.Ay && fPoints.Hy != fPoints.By)
         {
-            state = UPHILL;
+            routeState = UPHILL;
             return;
         }
         if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
         {
-            state = STRAIGHT;
+            routeState = STRAIGHT;
         }
     }
 
@@ -182,12 +205,12 @@ void fsmJudge()
     // }
 
     // 其他所有情况按直线处理
-    state = STRAIGHT;
+    routeState = STRAIGHT;
 }
 
 void edgeFix()
 {
-    switch (state)
+    switch (routeState)
     {
     case CROSS:
         for (int i = fPoints.Cy; i >= fPoints.Ey; i--)
@@ -195,6 +218,33 @@ void edgeFix()
             _drawLine(fPoints.Cx, fPoints.Cy, fPoints.Ex, fPoints.Ey, lEdge);
             _drawLine(fPoints.Dx, fPoints.Dy, fPoints.Fx, fPoints.Fy, rEdge);
         }
+        break;
+    case PARK_IN:
+        if(!ifAntiClockWise){
+            goto RIGHT_ROUNDABOUT_IN_LABLE;
+        }
+        goto LEFT_ROUNDABOUT_IN_LABLE;
+        break;
+    case PARK_OUT:
+        if(!ifAntiClockWise){
+            goto RIGHT_ROUNDABOUT_OUT_LABLE;
+        }
+        goto LEFT_ROUNDABOUT_OUT_LABLE;
+        break;
+    case LEFT_ROUNDABOUT_IN:
+    LEFT_ROUNDABOUT_IN_LABLE:
+
+        break;
+    case RIGHT_ROUNDABOUT_IN:
+    RIGHT_ROUNDABOUT_IN_LABLE:
+        break;
+    case LEFT_ROUNDABOUT_OUT:
+    LEFT_ROUNDABOUT_OUT_LABLE:
+        _drawArc(fPoints.Dx, fPoints.Dy, fPoints.Ex, fPoints.Ey, rEdge);
+        break;
+    case RIGHT_ROUNDABOUT_OUT:
+    RIGHT_ROUNDABOUT_OUT_LABLE:
+        _drawArc(fPoints.Cx, fPoints.Cy, fPoints.Fx, fPoints.Fy, lEdge);
         break;
     default:
         break;
@@ -428,4 +478,12 @@ void _drawLine(int x1, int y1, int x2, int y2, uint8 array[])
     {
         array[i] = x1 + (float32)(x2 - x1) / (y2 - y1);
     }
+}
+
+void _drawArc(int x1, int y1, int x2, int y2, uint8 array[]){
+	int x = x2, y = y1;
+	int rx = x1 - x, ry = y2 - y;
+	for(int i = y; i > y2; i--){
+		array[i] = x - (double) rx / ry * sqrt(pow(ry, 2) - pow(i-y, 2));
+	}
 }
