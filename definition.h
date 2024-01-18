@@ -10,9 +10,9 @@
 #define PIN_SWITCH_2    (D15)
 
 #define PIN_MOTORL_A    (ATOM1_CH2_P21_4)
-#define PIN_MOTORL_B    (TIM5_PWM_CH3_A2)
+#define PIN_MOTORL_B    (ATOM1_CH1_P21_3)
 #define PIN_MOTORR_A    (ATOM1_CH3_P21_5)
-#define PIN_MOTORR_B    (TIM5_PWM_CH4_A3)
+#define PIN_MOTORR_B    (ATOM1_CH4_P21_6)
 
 #define PIN_STEER       (ATOM0_CH1_P33_9)
 
