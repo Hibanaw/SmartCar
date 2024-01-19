@@ -20,9 +20,7 @@ extern uint8 roadMid[64];
 extern struct FeaturePoints
 {
     // 间断点
-    uint8 Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, Ex, Ey, Fx, Fy;
-    // 斜率突变点
-    uint8 Gx, Gy, Hx, Hy;
+    int8 Ax, Ay, Bx, By, Cx, Cy, Dx, Dy, Ex, Ey, Fx, Fy;
 } fPoints;
 
 extern enum RouteState
@@ -31,17 +29,21 @@ extern enum RouteState
     PARK_OUT,
     STOP,
     STRAIGHT,
-    LEFT_ROUNDABOUT_IN,
+    LEFT_ROUNDABOUT_IN_0,
+    LEFT_ROUNDABOUT_IN_1,
     LEFT_ROUNDABOUT_KEEP,
     LEFT_ROUNDABOUT_OUT,
-    RIGHT_ROUNDABOUT_IN,
+    RIGHT_ROUNDABOUT_IN_0,
+    RIGHT_ROUNDABOUT_IN_1,
     RIGHT_ROUNDABOUT_KEEP,
     RIGHT_ROUNDABOUT_OUT,
     CROSS,
     UPHILL,
 } routeState;
 
-void image_process();
+extern uint32 stateTime;
+
+void imageProcess();
 uint8 otsu();
 void downsample(const uint8 image_ori[MT9V03X_H][MT9V03X_W]);
 void binarize();

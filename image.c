@@ -1,5 +1,6 @@
 #include "image.h"
 #include "zf_common_headfile.h"
+#include "utils.h"
 
 #define DOWNSAMPLE_S (100)
 #define DOWNSAMPLE_C (5)
@@ -12,10 +13,9 @@
 #define DIFF_DT (1)
 #define DIFF_THRESHOLD (ANGLE_TO_RAD(10))
 
-
 uint8 image[64][128];
 
-uint8 threshold = 0;
+uint8 threshold = 165;
 
 uint8 maxl = 0;
 uint8 maxlpx = 0;
@@ -29,9 +29,11 @@ uint8 rowWeight[64];
 
 struct FeaturePoints fPoints;
 
+uint32 stateTime;
+
 enum RouteState routeState;
 
-void image_process()
+void imageProcess()
 {
     downsample(mt9v03x_image);
     if (doBin)
@@ -42,8 +44,8 @@ void image_process()
         findEdge();
         findFeaturePoints();
         fsmJudge();
-        if(doEdgeFix)
-            edgeFix();
+        // if(doEdgeFix)
+        edgeFix();
         findPath();
         getSteerError();
     }
@@ -52,157 +54,257 @@ void image_process()
 void findFeaturePoints()
 {
     memset(&fPoints, 0, sizeof(fPoints));
-    fPoints.Ay = fPoints.By = 63;
+    fPoints.Ay = fPoints.By = prospectL;
     fPoints.Ax = lEdge[fPoints.Ay];
     fPoints.Bx = rEdge[fPoints.By];
-    float32 pdl, pdr;
-    for (int i = 63; i > 63 - maxl; i--)
+    if(!fPoints.Ax||!fPoints.Bx) return;
+    for (int i = prospectL; i > MAX(prospectU, 63 - maxl) + 5; i--)
     {
-        float32 dl, dr;
-        if (i <= 63 - DIFF_DT && i >= DIFF_DT)
-        {
-            dl = lEdge[i - DIFF_DT] - lEdge[i + DIFF_DT] / (2 * DIFF_DT);
-            dr = rEdge[i - DIFF_DT] - rEdge[i + DIFF_DT] / (2 * DIFF_DT);
-            if (i > DIFF_DT)
-            {
-                if (abs(atan(dl) - atan(pdl)) > DIFF_THRESHOLD)
-                {
-                    fPoints.Gx = lEdge[i];
-                    fPoints.Gy = i;
-                }
-                if (abs(atan(dr) - atan(pdr)) > DIFF_THRESHOLD)
-                {
-                    fPoints.Hx = rEdge[i];
-                    fPoints.Hy = i;
-                }
-            }
-            pdl = dl;
-            pdr = dr;
-        }
-        if (!fPoints.Cy && lEdge[i - 1] < lEdge[i])
+        if (!fPoints.Cy && lEdge[i - 1] < lEdge[i]-20)
         {
             fPoints.Cy = i;
             fPoints.Cx = lEdge[i];
+            i -= 20;
         }
-        if (fPoints.Cy && lEdge[i - 1] > fPoints.Cx)
+        if (fPoints.Cy && lEdge[i] >= fPoints.Cx + (fPoints.Cx - fPoints.Ax) * (fPoints.Cy - i) / (fPoints.Ay - fPoints.Cy))
         {
             fPoints.Ey = i;
             fPoints.Ex = lEdge[i];
+            break;
         }
-        if (!fPoints.Dy && rEdge[i - 1] < rEdge[i])
+    }
+    for (int i = prospectL; i > MAX(prospectU, 63 - maxl) + 5; i--)
+    {
+        if (!fPoints.Dy && rEdge[i - 1] > rEdge[i]+20)
         {
             fPoints.Dy = i;
             fPoints.Dx = rEdge[i];
+            i -= 20;
         }
-        if (fPoints.Dy && rEdge[i - 1] > fPoints.Dx)
+        if (fPoints.Dy && rEdge[i] <= fPoints.Dx + (fPoints.Dx - fPoints.Bx) * (fPoints.Dy - i) / (fPoints.By - fPoints.Dy))
         {
             fPoints.Fy = i;
             fPoints.Fx = rEdge[i];
+            break;
         }
     }
 }
 
 void fsmJudge()
 {
-    // 停车
-    for(int i = 0, c = 0; i < 128; i++){
-        if(c > 100){
-            routeState = STOP;
+    uint32 time = system_getval_ms();
+    if (routeState == PARK_OUT)
+    {
+        if (time - stateTime < 500)
+        {
             return;
         }
-        if(image[prospectU][i] == 0){
+        routeState = STRAIGHT;
+        stateTime = time;
+    }
+    if (routeState == PARK_IN)
+    {
+        if (time - stateTime < 700)
+        {
+            return;
+        }
+        routeState = STRAIGHT;
+        stateTime = time;
+    }
+    // 车库
+    for (int i = 16, c = 0; i < 112; i++)
+    {
+        if (c >= 10)
+        {
+            routeState = PARK_IN;
+            stateTime = time;
+            return;
+        }
+        if (image[prospectL-10][i] != image[prospectL-10][i - 1])
+        {
+            c++;
+        }
+    }
+    // 停车
+    for (int i = 0, c = 0; i < 128; i++)
+    {
+        if (c > 100)
+        {
+            routeState = STOP;
+            stateTime = time;
+            return;
+        }
+        if (image[prospectL][i] == 0)
+        {
             c++;
         }
     }
     // 行驶在直线
     if (routeState == STRAIGHT)
     {
-        // 十字
-        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
+        // 环岛
+        if (fPoints.Cy && fPoints.Ey && !fPoints.Dy && !fPoints.Fy)
+        {
+            routeState = LEFT_ROUNDABOUT_IN_0;
+            stateTime = time;
+            return;
+        }
+        if (fPoints.Dy && fPoints.Fy && !fPoints.Cy && !fPoints.Ey)
+        {
+            routeState = RIGHT_ROUNDABOUT_IN_0;
+            stateTime = time;
+            return;
+        }
+    }
+
+    // 十字
+    if (routeState == STRAIGHT || routeState == CROSS)
+    {
+        if (fPoints.Dy && fPoints.Fy && fPoints.Cy && fPoints.Ey)
         {
             routeState = CROSS;
+            stateTime = time;
             return;
-        }
-
-        // 环岛
-        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.By == fPoints.Dy == fPoints.Fy)
-        {
-            routeState = LEFT_ROUNDABOUT_IN;
-            return;
-        }
-        if (fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By && fPoints.Ay == fPoints.Cy == fPoints.Ey)
-        {
-            routeState = RIGHT_ROUNDABOUT_IN;
-            return;
-        }
-
-        // 车库
-        for(int i = prospectL, c = 0; i > prospectU; i--){
-            if(c > 5){
-                routeState = PARK_IN;
-                return;
-            }
-            if(image[i][IMAGEMIDLINE] == 0){
-                c++;
-            }
         }
     }
 
-    // 入环岛
-    if (routeState == LEFT_ROUNDABOUT_IN)
+    // 环岛状态2
+    if (routeState == LEFT_ROUNDABOUT_IN_0)
     {
-        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+        if (time - stateTime < 800)
+            return;
+        if (fPoints.Cy && fPoints.Ey && !fPoints.Dy && !fPoints.Fy)
+        {
+            routeState = LEFT_ROUNDABOUT_IN_1;
+            stateTime = time;
+            return;
+        }
+    }
+    if (routeState == RIGHT_ROUNDABOUT_IN_0)
+    {
+        if (time - stateTime < 800)
+            return;
+        if (fPoints.Dy && fPoints.Fy && !fPoints.Cy && !fPoints.Ey)
+        {
+            routeState = RIGHT_ROUNDABOUT_IN_1;
+            stateTime = time;
+            return;
+        }
+    }
+    // 入环岛
+    if (routeState == LEFT_ROUNDABOUT_IN_1)
+    {
+        if (time - stateTime < 1000)
+            return;
+        if (!fPoints.Cy && fPoints.Dy && fPoints.Fy)
         {
             routeState = LEFT_ROUNDABOUT_KEEP;
+            stateTime = time;
         }
+        else if (time - stateTime > 2000)
+            routeState = STRAIGHT;
         return;
     }
-    if (routeState == RIGHT_ROUNDABOUT_IN)
+    if (routeState == RIGHT_ROUNDABOUT_IN_1)
     {
-        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+        if (time - stateTime < 1000)
+            return;
+        if (!fPoints.Dy && fPoints.Cy && fPoints.Ey)
         {
             routeState = RIGHT_ROUNDABOUT_KEEP;
+            stateTime = time;
         }
+        else if (time - stateTime > 2000)
+            routeState = STRAIGHT;
         return;
     }
     // 出环岛
     if (routeState == LEFT_ROUNDABOUT_KEEP)
     {
-        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
+        if (time - stateTime < 1000)
+            return;
+        if (fPoints.Cy && fPoints.Dy)
         {
             routeState = LEFT_ROUNDABOUT_OUT;
+            stateTime = time;
+        }
+        else if (time - stateTime > 5000)
+        {
+            routeState = STRAIGHT;
+            stateTime = time;
         }
         return;
     }
     if (routeState == RIGHT_ROUNDABOUT_KEEP)
     {
-        if (fPoints.Cy != fPoints.Ay && fPoints.Ey != fPoints.Ay && fPoints.Dy != fPoints.By && fPoints.Fy != fPoints.By)
+        if (time - stateTime < 1000)
+            return;
+        if (fPoints.Cy && fPoints.Dy)
         {
             routeState = RIGHT_ROUNDABOUT_OUT;
+            stateTime = time;
+        }
+        else if (time - stateTime > 5000)
+        {
+            routeState = STRAIGHT;
+            stateTime = time;
         }
         return;
     }
 
-    // 上坡
-    if (routeState == STRAIGHT || routeState == UPHILL)
+    if (routeState == LEFT_ROUNDABOUT_OUT)
     {
-        if (fPoints.Gy != fPoints.Ay && fPoints.Hy != fPoints.By)
-        {
-            routeState = UPHILL;
-            return;
-        }
-        if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+        if (time - stateTime > 500)
         {
             routeState = STRAIGHT;
+            stateTime = time;
+        }
+        return;
+    }
+    if (routeState == LEFT_ROUNDABOUT_OUT)
+    {
+        if (time - stateTime > 500)
+        {
+            routeState = STRAIGHT;
+            stateTime = time;
+        }
+        return;
+    }
+    // 上坡
+    // if (routeState == STRAIGHT)
+    {
+        if (63 - maxl < prospectL && !fPoints.Cy && !fPoints.Dy)
+        {
+            int8 kl1, kl2, kr1, kr2;
+            kl1 = ((int8)lEdge[prospectL - 5] - lEdge[prospectL]);
+            kl2 = ((int8)lEdge[prospectU] - lEdge[prospectU + 5]);
+            kr1 = -((int8)rEdge[prospectL - 5] - rEdge[prospectL]);
+            kr2 = -((int8)rEdge[prospectU] - rEdge[prospectU + 5]);
+            if (kl1 - kl2 > 1 && kr1 - kr2 > 1)
+            {
+                routeState = UPHILL;
+                stateTime = time;
+                return;
+            }
         }
     }
 
-    // // 直线
-    // if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
-    // {
-    //     state = STRAIGHT;
-    //     return;
-    // }
+    if (routeState == UPHILL)
+    {
+        if (time - stateTime >= 1000)
+        {
+            routeState = STRAIGHT;
+            stateTime = time;
+        }
+        return;
+    }
+
+    // 直线
+    if (fPoints.Ay == fPoints.By == fPoints.Cy == fPoints.Dy == fPoints.Ey == fPoints.Fy)
+    {
+        routeState = STRAIGHT;
+        return;
+    }
 
     // 其他所有情况按直线处理
     routeState = STRAIGHT;
@@ -210,6 +312,28 @@ void fsmJudge()
 
 void edgeFix()
 {
+    // int fl = 0, fr = 0;
+    // int fly = 0, fry = 0;
+    // for(int i = 63-maxl; i < 63; i++){
+    //     if(lEdge[i] == 0 && rEdge[i] != 127){
+    //         fl++;
+    //         fly = i;
+    //     }
+    //     else break;
+    // }
+    // for(int i = 63-maxl; i < 63; i++){
+    //     if(rEdge[i] == 127 && lEdge[i] != 0){
+    //         fr++;
+    //         fry = i;
+    //     }
+    //     else break;
+    // }
+    // for(int i = 63-maxl-fl; i > 63-maxl; i--){
+    //     lEdge[i] = rEdge[i] - rEdge[fly];
+    // }`
+    // for(int i = 63-maxl-fr; i > 63-maxl; i--){
+    //     rEdge[i] = lEdge[i] + 127 - lEdge[fly];
+    // }
     switch (routeState)
     {
     case CROSS:
@@ -219,35 +343,46 @@ void edgeFix()
             _drawLine(fPoints.Dx, fPoints.Dy, fPoints.Fx, fPoints.Fy, rEdge);
         }
         break;
-    case PARK_IN:
-        if(!ifAntiClockWise){
-            goto RIGHT_ROUNDABOUT_IN_LABLE;
-        }
-        goto LEFT_ROUNDABOUT_IN_LABLE;
+    // case PARK_IN:
+    //     if (!isAntiClockWise)
+    //     {
+    //         goto RIGHT_ROUNDABOUT_IN_1_LABLE;
+    //     }
+    //     goto LEFT_ROUNDABOUT_IN_1_LABLE;
+    //     break;
+    // case PARK_OUT:
+    //     if (!isAntiClockWise)
+    //     {
+    //         goto RIGHT_ROUNDABOUT_OUT_LABLE;
+    //     }
+    //     goto LEFT_ROUNDABOUT_OUT_LABLE;
+    //     break;
+    case LEFT_ROUNDABOUT_IN_0:
+        _drawLine(fPoints.Cx, fPoints.Cy, fPoints.Ex, fPoints.Ey, lEdge);
+        maxl = 63 - fPoints.Ey;
         break;
-    case PARK_OUT:
-        if(!ifAntiClockWise){
-            goto RIGHT_ROUNDABOUT_OUT_LABLE;
-        }
-        goto LEFT_ROUNDABOUT_OUT_LABLE;
+    case RIGHT_ROUNDABOUT_IN_0:
+        _drawLine(fPoints.Dx, fPoints.Dy, fPoints.Fx, fPoints.Fy, rEdge);
+        maxl = 63 - fPoints.Fy;
         break;
-    case LEFT_ROUNDABOUT_IN:
-    LEFT_ROUNDABOUT_IN_LABLE:
-
-        break;
-    case RIGHT_ROUNDABOUT_IN:
-    RIGHT_ROUNDABOUT_IN_LABLE:
-        break;
-    case LEFT_ROUNDABOUT_OUT:
-    LEFT_ROUNDABOUT_OUT_LABLE:
-        _drawArc(fPoints.Dx, fPoints.Dy, fPoints.Ex, fPoints.Ey, rEdge);
-        break;
-    case RIGHT_ROUNDABOUT_OUT:
-    RIGHT_ROUNDABOUT_OUT_LABLE:
-        _drawArc(fPoints.Cx, fPoints.Cy, fPoints.Fx, fPoints.Fy, lEdge);
-        break;
-    default:
-        break;
+    //     case LEFT_ROUNDABOUT_IN_1:
+    //     LEFT_ROUNDABOUT_IN_1_LABLE:
+    //         _drawArc(rEdge[fPoints.Cy], fPoints.Cy, fPoints.Ex, fPoints.Ey, rEdge);
+    //         break;
+    //     case RIGHT_ROUNDABOUT_IN_1:
+    //     RIGHT_ROUNDABOUT_IN_1_LABLE:
+    //         _drawArc(lEdge[fPoints.Dy], fPoints.Dy, fPoints.Fx, fPoints.Fy, lEdge);
+    //         break;
+    //     case LEFT_ROUNDABOUT_OUT:
+    //     LEFT_ROUNDABOUT_OUT_LABLE:
+    //         _drawArc(fPoints.Dx, fPoints.Dy, fPoints.Cx, 63-maxl, rEdge);
+    //         break;
+    //     case RIGHT_ROUNDABOUT_OUT:
+    //     RIGHT_ROUNDABOUT_OUT_LABLE:
+    //         _drawArc(fPoints.Cx, fPoints.Cy, fPoints.Dx, 63-maxl, lEdge);
+    //         break;
+        // default:
+        //     break;
     }
 }
 
@@ -468,22 +603,24 @@ void _drawLine(int x1, int y1, int x2, int y2, uint8 array[])
     {
         int tmpx, tmpy;
         tmpy = y1;
-        y2 = tmpy;
         y1 = y2;
+        y2 = tmpy;
         tmpx = x1;
-        x2 = tmpx;
         x1 = x2;
+        x2 = tmpx;
     }
     for (int i = y1; i < y2; i++)
     {
-        array[i] = x1 + (float32)(x2 - x1) / (y2 - y1);
+        array[i] = x1 + ((float32)(x2 - x1)) / (y2 - y1) * (i - y1);
     }
 }
 
-void _drawArc(int x1, int y1, int x2, int y2, uint8 array[]){
-	int x = x2, y = y1;
-	int rx = x1 - x, ry = y2 - y;
-	for(int i = y; i > y2; i--){
-		array[i] = x - (double) rx / ry * sqrt(pow(ry, 2) - pow(i-y, 2));
-	}
+void _drawArc(int x1, int y1, int x2, int y2, uint8 array[])
+{
+    int x = x2, y = y1;
+    int rx = x1 - x, ry = y2 - y;
+    for (int i = y; i > y2; i--)
+    {
+        array[i] = x - (double)rx / ry * sqrt(pow(ry, 2) - pow(i - y, 2));
+    }
 }
