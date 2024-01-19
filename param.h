@@ -29,13 +29,19 @@ extern int32 motorKi;
 extern int32 motorKd;
 
 extern int32 steerTarget;
-extern int32 speedTarget;
+extern float32 speedTarget;
 
 
 extern uint8 doMotor;
 extern uint8 doSteer;
+extern uint8 doEdgeFix;
 
-extern uint16 duty;
+extern uint8 doOutPark;
+extern uint8 reset;
+
+extern uint8 isAntiClockWise;
+
+extern uint16 speed;
 
 extern const uint16 image_data[];
 extern const uint8 imagea[120][188];
