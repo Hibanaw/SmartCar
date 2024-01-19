@@ -7,7 +7,7 @@ enum BUTTON_ID
   BUTTON_1 = 1,
   BUTTON_2 = 2,
   BUTTON_3 = 3,
-  BUTTON_4 = 4
+  BUTTON_4 = 4,
 };
 
 
