@@ -14,6 +14,6 @@
 
 void motorInit();
 void steerInit();
-void motorOutput(uint32 lDuty, uint32 rDuty);
+void motorOutput(int32 lDuty, int32 rDuty);
 void steerOutput(int32 output);
 #endif
