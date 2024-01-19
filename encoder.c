@@ -21,11 +21,11 @@ void encoderInit()
 
 void encoderRead()
 {
-    lEncoderCount = -encoder_get_count(TIM2_ENCODER);
-    rEncoderCount = encoder_get_count(TIM3_ENCODER);
+    rEncoderCount = -encoder_get_count(TIM3_ENCODER);
+    lEncoderCount = encoder_get_count(TIM4_ENCODER);
 
-    encoder_clear_count(TIM2_ENCODER);
     encoder_clear_count(TIM3_ENCODER);
+    encoder_clear_count(TIM4_ENCODER);
 }
 
 void getSpeed()
