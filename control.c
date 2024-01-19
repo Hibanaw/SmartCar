@@ -6,9 +6,12 @@
 #include "param.h"
 #include "servo.h"
 #include "image.h"
+#include "utils.h"
 
 int32 lMotorOutput;
 int32 rMotorOutput;
+
+enum SteerState steerState = STEER_PID;
 
 void control()
 {
@@ -19,6 +22,7 @@ void control()
     }
     if (doSteer)
     {
+        forceSteer();
         steerControl();
     }
 }
@@ -28,19 +32,34 @@ void calcMotorTargrt()
     switch (routeState)
     {
     case UPHILL:
-        speedTarget = speed * 1.5;
+        speedTarget = speed * 1.2;
         break;
     case STOP:
         speedTarget = 0;
         break;
     case STRAIGHT:
-    case CROSS:
         speedTarget = speed;
+        break;
+    case PARK_OUT:
+    case LEFT_ROUNDABOUT_IN_1:
+    case RIGHT_ROUNDABOUT_IN_1:
+    case LEFT_ROUNDABOUT_OUT:
+    case RIGHT_ROUNDABOUT_OUT:
+    case CROSS:
+        speedTarget = 0.5 * speed;
+        break;
+        
+    case PARK_IN:
+        speedTarget = 0.3 * speed;
+        break;
     default:
-        speedTarget = 0.8 * speed;
+        speedTarget = speed;
         break;
     }
+    speedTarget /= 100;
 }
+
+
 
 void motorControl()
 {
@@ -64,7 +83,8 @@ void motorControl()
     lOutputI = motorKi * lError[0];
     lOutputD = motorKd * (lError[0] - 2 * lError[1] + lError[2]);
     lMotorOutput = lOutputP + lOutputI + lOutputD + lPreOuput;
-
+    lMotorOutput = MAX(MIN(5000, lMotorOutput), 0);
+    
     rPreOuput = rMotorOutput;
     rError[2] = rError[1];
     rError[1] = rError[0];
@@ -72,9 +92,36 @@ void motorControl()
     rOutputP = motorKp * (rError[0] - rError[1]);
     rOutputI = motorKi * rError[0];
     rOutputD = motorKd * (rError[0] - 2 * rError[1] + rError[2]);
-    rMotorOutput = lOutputP + lOutputI + lOutputD + lPreOuput;
-
+    rMotorOutput = rOutputP + rOutputI + rOutputD + rPreOuput;
+    rMotorOutput = MAX(MIN(5000, rMotorOutput), 0);
+    if(speedTarget == 0) lMotorOutput = rMotorOutput = 0;
     motorOutput(lMotorOutput, rMotorOutput);
+}
+
+
+
+void forceSteer(){
+    switch (routeState)
+    {
+    case PARK_OUT:
+    case PARK_IN:
+        if(!isAntiClockWise)
+            steerState = STEER_RIGHT;
+        else 
+            steerState = STEER_LEFT;
+        break;
+    case LEFT_ROUNDABOUT_OUT:
+    case LEFT_ROUNDABOUT_IN_1:
+        steerState = STEER_LEFT;
+        break;
+    case RIGHT_ROUNDABOUT_OUT:
+    case RIGHT_ROUNDABOUT_IN_1:
+        steerState = STEER_RIGHT;
+        break;
+    default:
+        steerState = STEER_PID;
+        break;
+    }
 }
 
 void steerControl()
@@ -84,11 +131,23 @@ void steerControl()
     int32 outputP;
     int32 outputD;
     int32 output = 0;
-    outputP = steerError * steerKp / 1000;
-    outputI += steerError * steerKi / 1000;
-    outputD = (steerError - preError) * steerKd / 1000;
-    output = outputP + outputI + outputD;
-    preError = steerError;
-    steerTarget = output;
-    steerOutput(output);
+    switch (steerState)
+    {
+    case STEER_LEFT:
+        steerTarget = -STEER_RANGE + 10;
+        break;
+    case STEER_RIGHT:
+        steerTarget = STEER_RANGE - 10;
+        break;
+    default:
+        outputP = steerError * steerKp / 1000;
+        outputI += steerError * steerKi / 1000;
+        outputD = (steerError - preError) * steerKd / 1000;
+        output = outputP + outputI + outputD;
+        preError = steerError;
+        steerTarget = output;
+        break;
+    }
+    
+    steerOutput(steerTarget);
 }
