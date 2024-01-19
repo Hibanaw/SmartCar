@@ -2,12 +2,13 @@
 #define _SLAVE_H_
 
 #include "zf_common_typedef.h"
+#include "button.h"
 
 enum SLAVE_BUTTON_ID{
-    SLAVEBUTTONUP = BUTTON_3,
-    SLAVEBUTTONDOWN = BUTTON_4,
-    SLAVEBUTTONOK = BUTTON_2,
-    SLAVEBUTTONBACK = BUTTON_1
+    SLAVEBUTTON_UP = BUTTON_2,
+    SLAVEBUTTON_DOWN = BUTTON_1,
+    SLAVEBUTTON_LEFT = BUTTON_3,
+    SLAVEBUTTON_RIGHT = BUTTON_4,
 };
 
 struct SlaveOption
@@ -27,7 +28,7 @@ struct SlaveOption
 struct SlavePage
 {
     char* title;
-    struct SlaveOption option[10];
+    struct SlaveOption option[15];
     uint8 optionCount;
 };
 
